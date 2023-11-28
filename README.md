@@ -9,7 +9,7 @@ here is an example
 
 https://github.com/SonikBroom/glados-tts-withgui/assets/95891178/aa6bc2fd-0344-489e-9ae3-105c2efbc423
 
-all code in here except the gui is NOT MINE it belongs to nerdaxic
+all of the tts code is NOT MINE it belongs to nerdaxic
 you can find the original project here:
 https://github.com/nerdaxic/glados-tts
 
