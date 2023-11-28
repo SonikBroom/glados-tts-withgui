@@ -1,64 +1,58 @@
+import tkinter as tk
 import torch
 from utils.tools import prepare_text
 from scipy.io.wavfile import write
-import time
-from sys import modules as mod
-try:
-    import winsound
-except ImportError:
-    from subprocess import call
+import os
+import winsound
+from threading import Thread
 
-print("Initializing TTS Engine...")
+def process_input():
+    def save_audio():
+        user_input = message_entry.get()  # Get text from the message_entry textbox
 
-# Select the device
-if torch.is_vulkan_available():
-    device = 'vulkan'
-if torch.cuda.is_available():
-    device = 'cuda'
-else:
-    device = 'cpu'
+        if user_input:
+            file_name = file_entry.get()
 
-# Load models
-glados = torch.jit.load('models/glados.pt')
-vocoder = torch.jit.load('models/vocoder-gpu.pt', map_location=device)
+            if not os.path.exists('output'):
+                os.makedirs('output')
 
-# Prepare models in RAM
-for i in range(4):
-    init = glados.generate_jit(prepare_text(str(i)))
-    init_mel = init['mel_post'].to(device)
-    init_vo = vocoder(init_mel)
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            glados = torch.jit.load('models/glados.pt')
+            vocoder = torch.jit.load('models/vocoder-gpu.pt', map_location=device)
 
-while(1):
-    text = input("Input: ")
+            x = prepare_text(user_input).to('cpu')
 
-    # Tokenize, clean and phonemize input text
-    x = prepare_text(text).to('cpu')
+            with torch.no_grad():
+                tts_output = glados.generate_jit(x)
+                mel = tts_output['mel_post'].to(device)
+                audio = vocoder(mel)
 
-    with torch.no_grad():
+                audio = audio.squeeze()
+                audio = audio * 32768.0
+                audio = audio.cpu().numpy().astype('int16')
+                output_file = f"output/{file_name}.wav"
 
-        # Generate generic TTS-output
-        old_time = time.time()
-        tts_output = glados.generate_jit(x)
-        print("Forward Tacotron took " + str((time.time() - old_time) * 1000) + "ms")
+                write(output_file, 22050, audio)
+                console_area.insert(tk.END, f"Audio saved as {output_file}\n")
+                winsound.PlaySound(output_file, winsound.SND_FILENAME)
 
-        # Use HiFiGAN as vocoder to make output sound like GLaDOS
-        old_time = time.time()
-        mel = tts_output['mel_post'].to(device)
-        audio = vocoder(mel)
-        print("HiFiGAN took " + str((time.time() - old_time) * 1000) + "ms")
-        
-        # Normalize audio to fit in wav-file
-        audio = audio.squeeze()
-        audio = audio * 32768.0
-        audio = audio.cpu().numpy().astype('int16')
-        output_file = ('output.wav')
-        
-        # Write audio file to disk
-        # 22,05 kHz sample rate
-        write(output_file, 22050, audio)
+    Thread(target=save_audio).start()
 
-        # Play audio file
-        if 'winsound' in mod:
-            winsound.PlaySound(output_file, winsound.SND_FILENAME)
-        else:
-            call(["aplay", "./output.wav"])
+root = tk.Tk()
+root.title("GlaDOS TTS")
+
+console_area = tk.Text(root, height=10, width=50)
+console_area.grid(row=0, column=0, columnspan=2)
+
+tk.Label(root, text="Message: ").grid(row=1, column=0)
+message_entry = tk.Entry(root)
+message_entry.grid(row=1, column=1)
+
+tk.Label(root, text="Output File Name: ").grid(row=2, column=0)
+file_entry = tk.Entry(root)
+file_entry.grid(row=2, column=1)
+
+play_button = tk.Button(root, text="Save Audio", command=process_input)
+play_button.grid(row=3, column=0, columnspan=2)
+
+root.mainloop()"./output.wav"])
