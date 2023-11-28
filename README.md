@@ -3,7 +3,8 @@
 a fork of nerdaxic's glados-tts, I just added some simple gui
 
 download the code, run the glados.py (may not work if you don't have all the required modules installed, you can install them with pip install)
-put in the message GLaDOS will speak, the output file name (exports as a .wav) and click the button
+put in the message GLaDOS will speak, the output file name (exports as a .wav), and click the save button
+
 here is an example
 "Hello" 
 
